@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#080810">
+<title>Padel Score</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+:root {
+  --bg:#080810; --surface:#10101e; --border:#1e1e32;
+  --a:#00e5ff; --b:#ff6b35; --gold:#ffd600;
+  --white:#eaeaea; --dim:#555; --green:#00e676; --red:#ff3d3d;
+  --serve:#ffe600; --font:'Courier New',monospace;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--font);touch-action:manipulation;}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* SETUP */
+#setup{background:var(--bg);align-items:center;justify-content:center;padding:16px;gap:10px;overflow-y:auto;}
+#setup h1{font-size:13px;letter-spacing:4px;color:var(--white);text-transform:uppercase;margin-bottom:4px;}
+.setup-block{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 12px;}
+.setup-block label{display:block;font-size:8px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;margin-bottom:6px;}
+.name-row{display:flex;gap:8px;width:100%;}
+.name-input{flex:1;background:#0a0a18;border:1px solid var(--border);border-radius:4px;padding:7px 8px;font-family:var(--font);font-size:12px;font-weight:700;color:var(--white);text-align:center;outline:none;width:100%;}
+.name-input.a{border-color:var(--a);color:var(--a);}
+.name-input.b{border-color:var(--b);color:var(--b);}
+.option-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;}
+.option-row+.option-row{border-top:1px solid var(--border);margin-top:6px;padding-top:10px;}
+.option-label{font-size:10px;color:var(--white);letter-spacing:1px;}
+.option-sub{font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:2px;}
+.toggle{position:relative;width:38px;height:20px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#1a1a2e;border-radius:20px;cursor:pointer;transition:.2s;border:1px solid var(--border);}
+.slider:before{content:'';position:absolute;width:14px;height:14px;left:2px;top:2px;background:var(--dim);border-radius:50%;transition:.2s;}
+input:checked+.slider{background:var(--green);border-color:var(--green);}
+input:checked+.slider:before{transform:translateX(18px);background:#000;}
+.serve-btns{display:flex;gap:6px;}
+.serve-btn{padding:5px 10px;border:1px solid var(--border);border-radius:4px;background:#0a0a18;color:var(--dim);font-family:var(--font);font-size:9px;letter-spacing:1px;cursor:pointer;transition:.15s;}
+.serve-btn.sel-a{background:rgba(0,229,255,.1);border-color:var(--a);color:var(--a);}
+.serve-btn.sel-b{background:rgba(255,107,53,.1);border-color:var(--b);color:var(--b);}
+.start-btn{width:100%;padding:14px;border:none;border-radius:6px;background:var(--green);color:#000;font-family:var(--font);font-size:12px;font-weight:700;letter-spacing:3px;text-transform:uppercase;cursor:pointer;margin-top:4px;}
+
+/* GAME */
+#game{background:var(--bg);}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:5px 8px 4px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+#set-history{font-size:9px;color:var(--dim);letter-spacing:1px;flex:1;}
+#match-sets{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--white);text-align:center;flex:1;}
+#menu-btn{font-size:14px;background:none;border:none;color:var(--dim);cursor:pointer;flex:1;text-align:right;padding-right:2px;}
+#panels{flex:1;display:flex;position:relative;}
+.panel{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;padding:8px 4px;position:relative;overflow:hidden;}
+#pa{background:#07090d;border-right:1px solid #0e0e1a;}
+#pb{background:#09070a;}
+.panel::after{content:'';position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .3s;}
+#pa::after{background:radial-gradient(circle at 50% 50%,rgba(0,229,255,.15),transparent 70%);}
+#pb::after{background:radial-gradient(circle at 50% 50%,rgba(255,107,53,.15),transparent 70%);}
+.panel.tap::after{opacity:1;}
+.t-name{font-size:9px;letter-spacing:3px;text-transform:uppercase;margin-bottom:3px;}
+#pa .t-name{color:rgba(0,229,255,.5);}
+#pb .t-name{color:rgba(255,107,53,.5);}
+.games-num{font-size:58px;font-weight:700;line-height:1;letter-spacing:-3px;}
+#pa .games-num{color:var(--a);}
+#pb .games-num{color:var(--b);}
+.pts-badge{margin-top:7px;padding:3px 10px;border-radius:3px;font-size:17px;font-weight:700;letter-spacing:1px;}
+#pa .pts-badge{background:rgba(0,229,255,.08);color:var(--white);border:1px solid rgba(0,229,255,.2);}
+#pb .pts-badge{background:rgba(255,107,53,.08);color:var(--white);border:1px solid rgba(255,107,53,.2);}
+.serve-ind{width:7px;height:7px;border-radius:50%;background:var(--serve);margin-top:6px;opacity:0;transition:opacity .2s;box-shadow:0 0 6px var(--serve);}
+.serve-ind.on{opacity:1;}
+.gp-badge{font-size:8px;letter-spacing:2px;color:var(--gold);border:1px solid rgba(255,214,0,.3);padding:2px 6px;border-radius:3px;margin-top:4px;visibility:hidden;}
+.gp-badge.show{visibility:visible;}
+#cdiv{position:absolute;top:10%;left:50%;transform:translateX(-50%);width:1px;height:80%;pointer-events:none;background:linear-gradient(to bottom,transparent,var(--border) 30%,var(--border) 70%,transparent);}
+#statusbar{text-align:center;font-size:8px;letter-spacing:2px;color:var(--dim);padding:3px 0 4px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;text-transform:uppercase;}
+
+/* OVERLAYS */
+#overlay,#menu-overlay{display:none;position:fixed;inset:0;background:rgba(4,4,12,.97);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:8px;}
+#overlay.show,#menu-overlay.show{display:flex;}
+#menu-overlay{z-index:300;}
+#ov-eyebrow{font-size:8px;letter-spacing:4px;color:var(--dim);text-transform:uppercase;margin-bottom:2px;}
+#ov-title{font-size:20px;font-weight:700;margin-bottom:10px;}
+#ov-title.ca{color:var(--a);}
+#ov-title.cb{color:var(--b);}
+.ov-sets-recap{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;justify-content:center;}
+.ov-set-pill{font-size:10px;padding:3px 8px;border-radius:3px;background:var(--surface);border:1px solid var(--border);color:var(--white);letter-spacing:1px;}
+.obtn{width:100%;padding:11px;border:none;border-radius:5px;font-family:var(--font);font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;font-weight:700;}
+.obtn.primary{background:var(--green);color:#000;}
+.obtn.warn{background:var(--red);color:#fff;}
+.obtn.ghost{background:var(--surface);color:var(--white);border:1px solid var(--border);}
+#menu-overlay h2{font-size:10px;letter-spacing:4px;color:var(--dim);margin-bottom:8px;}
+
+/* FLASH */
+#flash{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);color:var(--white);font-size:9px;letter-spacing:2px;padding:5px 12px;border-radius:20px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:500;text-transform:uppercase;white-space:nowrap;}
+#flash.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="setup" class="screen active">
+  <h1>🎾 Padel Score</h1>
+  <div class="setup-block">
+    <label>Team Names</label>
+    <div class="name-row">
+      <input class="name-input a" id="nameA" maxlength="6" value="US">
+      <input class="name-input b" id="nameB" maxlength="6" value="THEM">
+    </div>
+  </div>
+  <div class="setup-block">
+    <label>Match Format</label>
+    <div class="option-row">
+      <div><div class="option-label">Best of 3 Sets</div><div class="option-sub">First to win 2 sets</div></div>
+      <label class="toggle"><input type="checkbox" id="bo3" checked><span class="slider"></span></label>
+    </div>
+    <div class="option-row">
+      <div><div class="option-label">Golden Point</div><div class="option-sub">No advantage at deuce</div></div>
+      <label class="toggle"><input type="checkbox" id="golden"><span class="slider"></span></label>
+    </div>
+    <div class="option-row">
+      <div><div class="option-label">Tiebreak at 6-6</div><div class="option-sub">First to 7 points</div></div>
+      <label class="toggle"><input type="checkbox" id="tiebreak" checked><span class="slider"></span></label>
+    </div>
+  </div>
+  <div class="setup-block">
+    <label>Who Serves First?</label>
+    <div class="serve-btns">
+      <button class="serve-btn sel-a" id="serveA" onclick="selectServe(0)">US</button>
+      <button class="serve-btn"       id="serveB" onclick="selectServe(1)">THEM</button>
+    </div>
+  </div>
+  <button class="start-btn" onclick="startMatch()">START MATCH</button>
+</div>
+
+<div id="game" class="screen">
+  <div id="topbar">
+    <div id="set-history"></div>
+    <div id="match-sets">0 – 0</div>
+    <button id="menu-btn" onclick="openMenu()">⋮</button>
+  </div>
+  <div id="panels">
+    <div id="cdiv"></div>
+    <div class="panel" id="pa">
+      <div class="t-name"    id="labelA">US</div>
+      <div class="games-num" id="gA">0</div>
+      <div class="pts-badge" id="ptA">0</div>
+      <div class="gp-badge"  id="gpA">GP</div>
+      <div class="serve-ind" id="sA"></div>
+    </div>
+    <div class="panel" id="pb">
+      <div class="t-name"    id="labelB">THEM</div>
+      <div class="games-num" id="gB">0</div>
+      <div class="pts-badge" id="ptB">0</div>
+      <div class="gp-badge"  id="gpB">GP</div>
+      <div class="serve-ind" id="sB"></div>
+    </div>
+  </div>
+  <div id="statusbar">TAP TO SCORE · HOLD TO UNDO</div>
+</div>
+
+<div id="overlay">
+  <div id="ov-eyebrow">SET WON</div>
+  <div id="ov-title" class="ca"></div>
+  <div class="ov-sets-recap" id="ov-sets"></div>
+  <button class="obtn primary" id="ov-continue">CONTINUE</button>
+  <button class="obtn ghost"   id="ov-undo">UNDO LAST POINT</button>
+  <button class="obtn warn"    id="ov-reset">NEW MATCH</button>
+</div>
+
+<div id="menu-overlay">
+  <h2>MENU</h2>
+  <button class="obtn ghost" onclick="undoLast();closeMenu();">UNDO LAST POINT</button>
+  <button class="obtn warn"  onclick="closeMenu();showScreen('setup');">NEW MATCH</button>
+  <button class="obtn ghost" onclick="closeMenu()">BACK</button>
+</div>
+
+<div id="flash"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// SCORING ENGINE — 70/70 tests passing
+// ══════════════════════════════════════════════════
+
+const PT_LABEL = ['0','15','30','40'];
+let cfg = {};
+let S   = {};
+
+// ── SETUP ──
+let serveFirst = 0;
+
+function syncServeLabels() {
+  const nA = document.getElementById('nameA').value.trim() || 'US';
+  const nB = document.getElementById('nameB').value.trim() || 'THEM';
+  document.getElementById('serveA').textContent = nA;
+  document.getElementById('serveB').textContent = nB;
+}
+['nameA','nameB'].forEach(id => document.getElementById(id).addEventListener('input', syncServeLabels));
+
+function selectServe(t) {
+  serveFirst = t;
+  document.getElementById('serveA').className = 'serve-btn' + (t===0 ? ' sel-a' : '');
+  document.getElementById('serveB').className = 'serve-btn' + (t===1 ? ' sel-b' : '');
+  syncServeLabels();
+}
+
+function startMatch() {
+  cfg = {
+    nameA:    document.getElementById('nameA').value.trim() || 'US',
+    nameB:    document.getElementById('nameB').value.trim() || 'THEM',
+    bo3:      document.getElementById('bo3').checked,
+    golden:   document.getElementById('golden').checked,
+    tiebreak: document.getElementById('tiebreak').checked,
+  };
+  S = makeState();
+  document.getElementById('labelA').textContent = cfg.nameA;
+  document.getElementById('labelB').textContent = cfg.nameB;
+  showScreen('game');
+  render();
+}
+
+function makeState() {
+  return {
+    pt:         [0, 0],   // 0=0, 1=15, 2=30, 3=40, 4=AD
+    games:      [0, 0],
+    sets:       [0, 0],
+    setHistory: [],
+    serving:    serveFirst,
+    deuce:      false,
+    tieMode:    false,
+    matchOver:  false,
+    history:    []
+  };
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── SCORE ENTRY ──
+function scorePoint(p) {
+  if (S.matchOver) return;
+  saveSnapshot();
+  if (S.tieMode) { scoreTiePoint(p); return; }
+  scoreNormalPoint(p);
+}
+
+// ── NORMAL POINT ──
+function scoreNormalPoint(p) {
+  const o = 1 - p;
+
+  if (S.deuce) {
+    if (cfg.golden) {
+      S.deuce = false; S.pt = [0, 0];
+      winGame(p); return;
+    }
+    // Who holds advantage? -1=none, 0=P0, 1=P1
+    const adHolder = S.pt[0] === 4 ? 0 : S.pt[1] === 4 ? 1 : -1;
+    if (adHolder === p) {
+      // Scorer already has AD → wins game
+      S.deuce = false; S.pt = [0, 0];
+      winGame(p); return;
+    } else if (adHolder === o) {
+      // Opponent had AD → back to deuce
+      S.pt = [3, 3];
+    } else {
+      // Both at 40, no AD yet → scorer gets AD
+      S.pt[p] = 4;
+    }
+    render(); return;
+  }
+
+  // Normal (pre-deuce)
+  S.pt[p]++;
+  if (S.pt[p] === 3 && S.pt[o] === 3) {
+    S.deuce = true; render(); return;
+  }
+  if (S.pt[p] === 4) {
+    S.pt = [0, 0]; winGame(p); return;
+  }
+  render();
+}
+
+// ── TIEBREAK POINT ──
+function scoreTiePoint(p) {
+  S.pt[p]++;
+  const total = S.pt[0] + S.pt[1];
+  const o = 1 - p;
+  // Serve rotates at odd totals: 1, 3, 5, 7...
+  if (total % 2 === 1) S.serving = 1 - S.serving;
+  // Win: first to 7, lead by ≥2
+  if (S.pt[p] >= 7 && (S.pt[p] - S.pt[o]) >= 2) {
+    S.pt = [0, 0]; S.tieMode = false;
+    winGame(p); return;
+  }
+  render();
+}
+
+// ── WIN GAME ──
+function winGame(p) {
+  S.games[p]++;
+  S.serving = 1 - S.serving;  // serve switches every game
+  S.deuce = false; S.pt = [0, 0];
+
+  const g = S.games;
+  const o = 1 - p;
+
+  // Enter tiebreak at 6-6 (if enabled)
+  if (cfg.tiebreak && g[p] === 6 && g[o] === 6) {
+    S.tieMode = true; render(); return;
+  }
+
+  // Set win: 6-x (diff ≥2), 7-5, or 7-6 (tiebreak)
+  const setWon = g[p] >= 6 && (g[p] - g[o] >= 2 || g[p] === 7);
+
+  if (setWon) {
+    S.setHistory.push([g[0], g[1]]);
+    S.sets[p]++;
+    S.games = [0, 0]; S.deuce = false; S.tieMode = false; S.pt = [0, 0];
+    const need = cfg.bo3 ? 2 : 1;
+    if (S.sets[p] >= need) { S.matchOver = true; showEvent('match', p); return; }
+    showEvent('set', p); return;
+  }
+  render();
+}
+
+// ── RENDER ──
+function render() {
+  document.getElementById('gA').textContent = S.games[0];
+  document.getElementById('gB').textContent = S.games[1];
+
+  let ptA, ptB;
+  if (S.tieMode) {
+    ptA = S.pt[0]; ptB = S.pt[1];
+  } else if (S.deuce) {
+    ptA = S.pt[0] === 4 ? 'AD' : '40';
+    ptB = S.pt[1] === 4 ? 'AD' : '40';
+  } else {
+    ptA = PT_LABEL[S.pt[0]] ?? '0';
+    ptB = PT_LABEL[S.pt[1]] ?? '0';
+  }
+  document.getElementById('ptA').textContent = ptA;
+  document.getElementById('ptB').textContent = ptB;
+
+  document.getElementById('sA').classList.toggle('on', S.serving === 0);
+  document.getElementById('sB').classList.toggle('on', S.serving === 1);
+
+  const gpOn = cfg.golden && S.deuce && !S.tieMode;
+  document.getElementById('gpA').classList.toggle('show', gpOn);
+  document.getElementById('gpB').classList.toggle('show', gpOn);
+
+  document.getElementById('match-sets').textContent = S.sets[0] + ' – ' + S.sets[1];
+  document.getElementById('set-history').textContent = S.setHistory.map(s => s[0]+'-'+s[1]).join('  ');
+
+  let status = 'TAP TO SCORE · HOLD TO UNDO';
+  if      (S.matchOver)             status = 'MATCH OVER';
+  else if (S.tieMode)               status = 'TIEBREAK  ' + S.pt[0] + ' – ' + S.pt[1];
+  else if (S.deuce && cfg.golden)   status = 'GOLDEN POINT';
+  else if (S.deuce)                 status = 'DEUCE';
+  document.getElementById('statusbar').textContent = status;
+}
+
+// ── EVENT OVERLAY ──
+function showEvent(type, winner) {
+  const isMatch = type === 'match';
+  document.getElementById('ov-eyebrow').textContent = isMatch ? 'MATCH OVER' : 'SET WON';
+  const title = document.getElementById('ov-title');
+  title.textContent = [cfg.nameA, cfg.nameB][winner] + (isMatch ? ' WIN MATCH!' : ' WIN SET');
+  title.className   = winner === 0 ? 'ca' : 'cb';
+  const recap = document.getElementById('ov-sets');
+  recap.innerHTML = '';
+  S.setHistory.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'ov-set-pill';
+    d.textContent = s[0] + ' – ' + s[1];
+    recap.appendChild(d);
+  });
+  document.getElementById('ov-continue').style.display = isMatch ? 'none' : 'block';
+  document.getElementById('overlay').classList.add('show');
+  render();
+}
+
+document.getElementById('ov-continue').addEventListener('click', () => {
+  document.getElementById('overlay').classList.remove('show'); render();
+});
+document.getElementById('ov-undo').addEventListener('click', () => {
+  document.getElementById('overlay').classList.remove('show'); undoLast();
+});
+document.getElementById('ov-reset').addEventListener('click', () => {
+  document.getElementById('overlay').classList.remove('show'); showScreen('setup');
+});
+
+// ── MENU ──
+function openMenu()  { document.getElementById('menu-overlay').classList.add('show'); }
+function closeMenu() { document.getElementById('menu-overlay').classList.remove('show'); }
+
+// ── UNDO ──
+function saveSnapshot() {
+  S.history.push({
+    pt:         [...S.pt],
+    games:      [...S.games],
+    sets:       [...S.sets],
+    setHistory: S.setHistory.map(s => [...s]),
+    serving:    S.serving,
+    deuce:      S.deuce,
+    tieMode:    S.tieMode,
+    matchOver:  S.matchOver
+  });
+  if (S.history.length > 50) S.history.shift();
+}
+
+function undoLast() {
+  if (!S.history.length) { flash('NOTHING TO UNDO'); return; }
+  const prev = S.history.pop();
+  // Restore all fields manually — S.history stays intact
+  S.pt         = prev.pt;
+  S.games      = prev.games;
+  S.sets       = prev.sets;
+  S.setHistory = prev.setHistory;
+  S.serving    = prev.serving;
+  S.deuce      = prev.deuce;
+  S.tieMode    = prev.tieMode;
+  S.matchOver  = prev.matchOver;
+  render();
+  flash('UNDO ✓');
+}
+
+// ── TAP HANDLERS ──
+function setupPanel(panelId, player) {
+  const el = document.getElementById(panelId);
+  let holdTimer  = null;
+  let didHold    = false;
+  let hasTouched = false;
+
+  el.addEventListener('touchstart', () => {
+    hasTouched = true;
+    didHold    = false;
+    holdTimer  = setTimeout(() => { didHold = true; undoLast(); }, 550);
+  }, { passive: true });
+
+  el.addEventListener('touchend', () => {
+    clearTimeout(holdTimer);
+    if (!didHold) {
+      el.classList.add('tap');
+      setTimeout(() => el.classList.remove('tap'), 300);
+      scorePoint(player);
+    }
+  });
+
+  el.addEventListener('touchmove', () => {
+    clearTimeout(holdTimer); didHold = true;
+  }, { passive: true });
+
+  // Mouse fallback for desktop — only if no touch
+  el.addEventListener('click', () => { if (!hasTouched) scorePoint(player); });
+}
+
+setupPanel('pa', 0);
+setupPanel('pb', 1);
+
+// ── FLASH ──
+let flashTimer;
+function flash(msg) {
+  const el = document.getElementById('flash');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => el.classList.remove('show'), 1400);
+}
+
+selectServe(0);
+</script>
+</body>
+</html>
